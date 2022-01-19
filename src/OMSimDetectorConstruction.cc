@@ -87,7 +87,7 @@ G4VPhysicalVolume* OMSimDetectorConstruction::Construct() {
     ConstructWorld();
     //mData->SetValue("om_mDOM", "jNrPolarPMTs", 3);
 
-    mOpticalModule = new mDOM(mData, true);
+    mOpticalModule = new mDOM(mData, gharness_ropes);
     
     //mOpticalModule->PlaceIt(G4ThreeVector(0,0,0), G4RotationMatrix(), mWorldLogical, "module_phys_0");
 

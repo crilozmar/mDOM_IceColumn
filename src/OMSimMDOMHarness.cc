@@ -400,7 +400,7 @@ void mDOMHarness::TeraBelt()
 {
     const G4double lTeraWidth = mData->GetValue(mDataKey, "jTeraWidth") ;
     G4double zCorners[] = {  lTeraWidth/ 2, 0, -lTeraWidth/ 2};
-    G4double R = mOM->mGlassOutRad;
+    G4double R = mOM->mGlassOutRad+0.8*mm; //add something so they do not touch
     G4double rCornersInn[] = {  R, R + (lTeraWidth / 2) * sin(mOM->mCylinderAngle), R };
     R = mOM->mGlassOutRad + mTeraThickness;
     G4double rCornersOut[] = {  R, R + (lTeraWidth / 2) * sin(mOM->mCylinderAngle), R};

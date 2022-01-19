@@ -52,7 +52,7 @@ protected:
     const G4VisAttributes mInvisibleVis = G4VisAttributes::GetInvisible();
     const G4VisAttributes* mRedVis = new G4VisAttributes(G4Colour(1.0, 0.0, 0.0, 1.0));
     const G4VisAttributes* mBlackVis = new G4VisAttributes(G4Colour(0.0, 0.0, 0.0, 1.0));
-    const G4VisAttributes* mLEDvis= new G4VisAttributes(G4Colour(0.2,0.6,0.8,0.7));	    
+    const G4VisAttributes* mLEDvis= new G4VisAttributes(G4Colour(0.2,0.6,0.8,0.5));	    
 
 };
 

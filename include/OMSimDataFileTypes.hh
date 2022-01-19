@@ -9,6 +9,7 @@
 #include "G4SystemOfUnits.hh"
 
 namespace pt = boost::property_tree;
+extern G4int gDepthpos;
 
 class ParameterTable;
 
@@ -70,7 +71,7 @@ public:
     IceCubeIce(G4String pFilename) : abcMaterialData(pFilename) {};
     void ExtractInformation();
 private:
-    G4int mSpiceDepth_pos = 88; //depth = 2278.2 m
+    G4int mSpiceDepth_pos = gDepthpos; //depth = 2278.2 m
     G4double Spice_Temperature(G4double depth);
     G4double Spice_Absorption(G4double pLambd);
     G4double Spice_Refraction(G4double pLambd);
@@ -78,7 +79,7 @@ private:
     std::vector<G4double> mSpice_be400inv;
     std::vector<G4double> mSpice_a400inv;
     std::vector<G4double> mSpice_Depth;
-    const G4double mMIE_spice_const[3] = { 0.972, 0, 1 };
+    const G4double mMIE_spice_const[3] = { 0.972, 0.0000001, 1 };
     G4MaterialPropertiesTable* mMPT_holeice;
 };
 
