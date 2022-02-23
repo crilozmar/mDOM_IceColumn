@@ -222,6 +222,8 @@ void mDOMHarness::BridgeRopesSolid()
     G4UnionSolid* lRopesUnionSolid = new G4UnionSolid("lRopesUnionSolid", lTempUnion4, lTempUnion2, G4Transform3D(lRot, G4ThreeVector(0, 0, 0)));
     G4LogicalVolume* lRopesUnionLogical = new G4LogicalVolume(lRopesUnionSolid, mData->GetMaterial("NoOptic_Stahl"), "");
 
+    new G4LogicalSkinSurface("ropes_skin", lRopesUnionLogical, mData->GetOpticalSurface("Refl_StainlessSteelGround"));
+
     G4RotationMatrix lRopesRot = G4RotationMatrix();
     lRopesRot.rotateZ(mHarnessRotAngle);
 

@@ -15,15 +15,16 @@ else()
 	find_package(Geant4 REQUIRED)
 endif()
 
+# location of Geant4 libraries
+set (CMAKE_MODULE_PATH /Applic.ZIV/CentOS7/software/p0kapp/software/geant4/4.10.07.p02/lib64/Geant4-10.7.2/Modules)
 # try to use ROOT libraries
-#set (CMAKE_MODULE_PATH /Applic.ZIV/CentOS7/software/p0kapp/software/geant4/10.4.02.p01/lib64/Geant4-10.2.1/Modules/)
 #find_package(ROOT)
-set (CMAKE_MODULE_PATH /data/c_loza01/Geant4-10.02.p03/geant4.10.02.p03-install/lib/Geant4-10.2.3/Modules)
 
 # sets search paths for include
 include(${Geant4_USE_FILE})
 include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${ROOT_INCLUDE_DIR})
+#include_directories(${ROOT_INCLUDE_DIR})
+
 
 # create list of all the files to compile
 file(GLOB sources ${PROJECT_SOURCE_DIR}/src/*.cc)
@@ -36,9 +37,9 @@ LINK_DIRECTORIES(/Applic.ZIV/CentOS7/software/p0kapp/software/lib)
 # details for the finished binary
 add_executable(mdom mdom.cc ${sources} ${headers})
 
-#target_link_libraries(mdom ${Geant4_LIBRARIES} argtable2 ${ROOT_LIBRARIES})
+target_link_libraries(mdom ${Geant4_LIBRARIES} argtable2 ${ROOT_LIBRARIES})
 # manually add arg-table 
-target_link_libraries(mdom ${Geant4_LIBRARIES} /usr/lib/x86_64-linux-gnu/libargtable2.so.0 )
+#target_link_libraries(mdom ${Geant4_LIBRARIES} /usr/lib/x86_64-linux-gnu/libargtable2.so.0 )
 
 
 

@@ -848,7 +848,7 @@ int main(int argc,char *argv[])
 	extrap_mode->sval[0] = "0"; //no extrapolation by default
 	lplevel->sval[0] = "2"; //final level by default
         
-	mdomseparation-> dval[0] = 2.7; //m
+	mdomseparation-> dval[0] = 3.; //m
 	n_mDOMs->ival[0] = 1;
 	
 	glass->ival[0] = 0;	// use VITROVEX as default
