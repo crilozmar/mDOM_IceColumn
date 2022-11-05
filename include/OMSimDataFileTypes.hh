@@ -81,6 +81,7 @@ private:
     std::vector<G4double> mSpice_Depth;
     const G4double mMIE_spice_const[3] = { 0.972, 0.0000001, 1 };
     G4MaterialPropertiesTable* mMPT_holeice;
+    std::vector<G4MaterialPropertiesTable*> mMPT_holeice_slices;
 };
 
 

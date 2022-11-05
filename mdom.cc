@@ -74,6 +74,25 @@ G4double	gmdomseparation;
 G4int	gn_mDOMs;
 G4bool gpointingdownLED;
 
+G4double gdisplace_theta0;
+G4double gdisplace_phi0;
+G4double gdisplace_x0;
+G4double gdisplace_y0;
+G4double gdisplace_theta1;
+G4double gdisplace_phi1;
+G4double gdisplace_x1;
+G4double gdisplace_y1;
+
+G4double gtransitioncolumn;
+G4int gtransitioncolumn_slices;
+G4int gtransitioncolumn_type;
+
+G4double gMieVar;
+G4double gAbsVar;
+
+std::vector<G4double> gleds_theta;
+std::vector<G4double> gleds_phi;
+
 G4int	gsimevents;
 G4int 	gReconstruction;
 G4double	 LogL;
@@ -350,29 +369,33 @@ void PointSourceGPS() {
 
 void LED_Definition(OMSimDetectorConstruction* detector)
 {
-	if (gDOM != 0) {
-		G4String mssg = "LEDs are only defined for mDOM so far!";
-    	critical(mssg);
-		return;
-	}
-	std::vector<G4Transform3D> lLEDTransformers = detector->mOpticalModule->mLEDTransformers;
-	std::vector<std::vector<G4double>> lLED_AngFromSphere = detector->mOpticalModule->mLED_AngFromSphere; //rho,theta,phi of the LEDs with respect to the center of the corresponding spherical part of the vessel
-	G4RotationMatrix lShootingModuleOrientation = detector->mOpticalModule->mPlacedOrientations.at(gEmitter_mdom);
-	G4ThreeVector lShootingModulePos = detector->mOpticalModule->mPlacedPositions.at(gEmitter_mdom);
-	gZshift = lShootingModulePos.getZ();
-	gCylHigh = detector->mOpticalModule->mCylHigh;
+    if (gDOM != 0) {
+            G4String mssg = "LEDs are only defined for mDOM so far!";
+    critical(mssg);
+            return;
+    }
+    std::vector<G4Transform3D> lLEDTransformers = detector->mOpticalModule->mLEDTransformers;
+    std::vector<std::vector<G4double>> lLED_AngFromSphere = detector->mOpticalModule->mLED_AngFromSphere; //rho,theta,phi of the LEDs with respect to the center of the corresponding spherical part of the vessel
+    G4RotationMatrix lShootingModuleOrientation = detector->mOpticalModule->mPlacedOrientations.at(gEmitter_mdom);
+    
+    G4double thetabeam_touse;
+    G4double phibeam_touse;
+    
+    G4ThreeVector lShootingModulePos = detector->mOpticalModule->mPlacedPositions.at(gEmitter_mdom);
+    gZshift = lShootingModulePos.getZ();
+    gCylHigh = detector->mOpticalModule->mCylHigh;
 
-	G4int lNrTotalLED = detector->mOpticalModule->mNrTotalLED;
+    G4int lNrTotalLED = detector->mOpticalModule->mNrTotalLED;
     int nbOfLEDs = strlen(gActivateLED); //number of activates/deactivates LEDs. For example, this can be 0011 to activate LEDs (3,4), even if lNrTotalLED is for example 10. 
 
-	G4double DistLED = 152.8*mm; //Distance from center of sphere to LED light source?
+    G4double DistLED = 152.8*mm; //Distance from center of sphere to LED light source?
     //G4double totalDOMsize = 199 * mm;
 
     double phi, theta, rho;
-	double phi_led, theta_led,  rho_led;
+    double phi_led, theta_led,  rho_led;
     double posX, posY, posZ;
-	double xPrime, yPrime, zPrime;
-	double xPrime2, yPrime2, zPrime2;
+    double xPrime, yPrime, zPrime;
+    double xPrime2, yPrime2, zPrime2;
     G4ThreeVector lLEDpos; //position of the LED with respect to the module
 	G4Transform3D lLEDTrans; //position and rotation of the LED with respect to the world
 	G4ThreeVector lLEDpos_fromworld; //position of the LED with respect to the world
@@ -381,6 +404,8 @@ void LED_Definition(OMSimDetectorConstruction* detector)
 	G4ThreeVector rot2vector;
 	G4Transform3D rot2trans;
 
+    G4double thetatest ; G4double phitest ; 
+        
     for (int i = 1; i < nbOfLEDs; i++)
     {
         static int iter = 0;
@@ -398,7 +423,7 @@ void LED_Definition(OMSimDetectorConstruction* detector)
             UI->ApplyCommand(command.str());
         }
     }
-
+    G4TouchableHistoryHandle aTouchable;
 //     for (uint i = 0; i < v_LED_Positions.size(); i++)
     for (int i = 0; i < nbOfLEDs; i++)
     {
@@ -411,7 +436,7 @@ void LED_Definition(OMSimDetectorConstruction* detector)
             
             phi_led = (lLED_AngFromSphere.at(i)).at(2);
             theta_led = (lLED_AngFromSphere.at(i)).at(1);
-			rho_led = (lLED_AngFromSphere.at(i)).at(0);
+            rho_led = (lLED_AngFromSphere.at(i)).at(0);
             
             G4double gmDOMTiltingAngle_x = 0;
             G4double gmDOMTiltingAngle_y = 0;
@@ -420,22 +445,54 @@ void LED_Definition(OMSimDetectorConstruction* detector)
             
 			//get the positions like: position of the LED + position of the module with the corresponding rotation matrix
             posX = lLEDTransformers.at(i).getTranslation().getX();
-			posY = lLEDTransformers.at(i).getTranslation().getY();
-			posZ = lLEDTransformers.at(i).getTranslation().getZ();
-			lLEDpos = G4ThreeVector(posX, posY, posZ);
+            posY = lLEDTransformers.at(i).getTranslation().getY();
+            posZ = lLEDTransformers.at(i).getTranslation().getZ();
+            lLEDpos = G4ThreeVector(posX, posY, posZ);
 
-
-			lLEDTrans = detector->mOpticalModule->GetNewPosition(lShootingModulePos, lShootingModuleOrientation, lLEDpos, G4RotationMatrix());
-			lLEDpos_fromworld = lLEDTrans.getTranslation();
-			posX = lLEDpos_fromworld.getX();
-			posY = lLEDpos_fromworld.getY();
-			posZ = lLEDpos_fromworld.getZ();
+            lLEDTrans = detector->mOpticalModule->GetNewPosition(lShootingModulePos, lShootingModuleOrientation, lLEDpos, G4RotationMatrix());
+            lLEDpos_fromworld = lLEDTrans.getTranslation();
+            posX = lLEDpos_fromworld.getX();
+            posY = lLEDpos_fromworld.getY();
+            posZ = lLEDpos_fromworld.getZ();
 
             command.str("");
             command << "/gps/pos/type Point";
             UI->ApplyCommand(command.str());
             
             if (gHittype == "collective") { //This means a direct light profile simulation will be done
+                /*
+                command.str("");
+                command << "/gps/pos/type Beam";
+                UI->ApplyCommand(command.str());
+                
+                aNavigator->LocateGlobalPointAndSetup(G4ThreeVector(posX, posY, posZ));
+                aTouchable = aNavigator->CreateTouchableHistoryHandle();
+                thetatest = aTouchable->GetRotation()->getTheta();
+                phitest = aTouchable->GetRotation()->getPhi();
+                //xPrime2=cos(phitest)*sin(thetatest);
+                //yPrime2=sin(thetatest)*sin(phitest);
+                //zPrime2=cos(phitest);
+                xPrime2 = aTouchable->GetRotation()->inverse().xz();
+                yPrime2 = aTouchable->GetRotation()->inverse().yz();
+                zPrime2 = aTouchable->GetRotation()->inverse().zz();
+                
+                
+                G4cout << "****************" << G4endl;
+                G4cout << "****************" << G4endl;
+                G4cout << "****************" << G4endl;
+                G4cout << "****************" << G4endl;
+                G4cout << posX/m << " " << posY/m << " " <<posZ/m << G4endl;
+                G4cout << aTouchable->GetHistoryDepth() << G4endl;
+                G4cout << aTouchable->GetRotation()->getTheta()/deg << " " << aTouchable->GetRotation()->getPhi()/deg  << G4endl; 
+                
+                command.str("");
+                command << "/gps/direction " << xPrime2 << " " << yPrime2 << " " <<  zPrime2;
+                UI->ApplyCommand(command.str());
+                
+                
+            }
+                
+                */
                 command.str("");
                 command << "/gps/ang/type user"; //biast = theta
                 UI->ApplyCommand(command.str());
@@ -485,48 +542,82 @@ void LED_Definition(OMSimDetectorConstruction* detector)
             } else {
 				//build angles rot1 and rot2. See https://geant4-userdoc.web.cern.ch/UsersGuides/ForApplicationDeveloper/html/GettingStarted/generalParticleSource.html
 
-				//Rot1
-				xPrime=-sin(phi_led);
-				yPrime=cos(phi_led);
-				zPrime=0;
-				//this would be the vector for rot1. However, same as before, we need to rotate this vector with the proper module rotation (no translation this time!)
-				rot1vector = G4ThreeVector(xPrime, yPrime, zPrime);
-				rot1trans = detector->mOpticalModule->GetNewPosition(G4ThreeVector(), lShootingModuleOrientation, rot1vector, G4RotationMatrix());
-				rot1vector = rot1trans.getTranslation();
-				xPrime = rot1vector.getX();
-				yPrime = rot1vector.getY();
-				zPrime = rot1vector.getZ();				
-		
+		//Rot1
+                aNavigator->LocateGlobalPointAndSetup(G4ThreeVector(posX, posY, posZ));
+                aTouchable = aNavigator->CreateTouchableHistoryHandle();
+
+                thetabeam_touse = aTouchable->GetRotation()->inverse().getTheta(); 
+                phibeam_touse = aTouchable->GetRotation()->inverse().getPhi(); 
+                
+                
+                //xPrime=-sin(phibeam_touse);
+                //yPrime=cos(phibeam_touse);
+                //zPrime=0;
+                
+                
+                xPrime = aTouchable->GetRotation()->inverse().xx();
+                yPrime = aTouchable->GetRotation()->inverse().yx();
+                zPrime = aTouchable->GetRotation()->inverse().zx();
+                
+                xPrime2 = -aTouchable->GetRotation()->inverse().xy();
+                yPrime2 = -aTouchable->GetRotation()->inverse().yy();
+                zPrime2 = -aTouchable->GetRotation()->inverse().zy();
+                /*
+                xPrime = aTouchable->GetRotation()->inverse().xx();
+                yPrime = aTouchable->GetRotation()->inverse().yx();
+                zPrime = aTouchable->GetRotation()->inverse().zx();
+                
+                xPrime2 = aTouchable->GetRotation()->inverse().xy();
+                yPrime2 = aTouchable->GetRotation()->inverse().yy();
+                zPrime2 = aTouchable->GetRotation()->inverse().zy();*/
+                /*
+                //this would be the vector for rot1. However, same as before, we need to rotate this vector with the proper module rotation (no translation this time!)
+                rot1vector = G4ThreeVector(xPrime, yPrime, zPrime);
+                
+                
+                rot1trans = detector->mOpticalModule->GetNewPosition(G4ThreeVector(), aTouchable->GetRotation()->inverse(), rot1vector, G4RotationMatrix());
+                rot1vector = rot1trans.getTranslation();
+                
+                
+                xPrime = rot1vector.getX();
+                yPrime = rot1vector.getY();
+                zPrime = rot1vector.getZ();				
+		*/
+                
                 command.str("");
                 command << "/gps/pos/rot1 " << xPrime << " " << yPrime << " " << zPrime ;
                 UI->ApplyCommand(command.str());
-				command.str("");
+                command.str("");
                 command << "/gps/ang/rot1 " << xPrime << " " << yPrime << " " << zPrime ;
                 UI->ApplyCommand(command.str());
              
-			 	//Rot2
-				xPrime2=cos(theta_led)*cos(phi_led);
-				yPrime2=cos(theta_led)*sin(phi_led);
-				zPrime2=-sin(theta_led);
-				//again this would be rot2, so we rotate
-				rot2vector = G4ThreeVector(xPrime2, yPrime2, zPrime2);
-				rot2trans = detector->mOpticalModule->GetNewPosition(G4ThreeVector(), lShootingModuleOrientation, rot2vector, G4RotationMatrix());
-				rot2vector = rot2trans.getTranslation();
-				xPrime2 = rot2vector.getX();
-				yPrime2 = rot2vector.getY();
-				zPrime2 = rot2vector.getZ();	
-               
+                //Rot2
+                /*
+                xPrime2=cos(thetabeam_touse)*cos(phibeam_touse);
+                yPrime2=cos(thetabeam_touse)*sin(phibeam_touse);
+                zPrime2=-sin(thetabeam_touse);
+                //again this would be rot2, so we rotate
+                
+                rot2vector = G4ThreeVector(xPrime2, yPrime2, zPrime2);
+                rot2trans = detector->mOpticalModule->GetNewPosition(G4ThreeVector(), aTouchable->GetRotation()->inverse(), rot2vector, G4RotationMatrix());
+                rot2vector = rot2trans.getTranslation();
+                xPrime2 = rot2vector.getX();
+                yPrime2 = rot2vector.getY();
+                zPrime2 = rot2vector.getZ();	
+                */
                 command.str("");
                 command << "/gps/pos/rot2 " << xPrime2 << " " << yPrime2 << " " <<  zPrime2;
-				command.str("");
+                command.str("");
                 command << "/gps/ang/rot2 " << xPrime2 << " " << yPrime2 << " " <<  zPrime2;
                 UI->ApplyCommand(command.str());
+                
                 
                 G4double MaxAngle = 89.; //when too close to 90, give photons that directly hit the structure and do not propagate... photons with theta=90 are anyway weighed very low
                 command.str("");
                 command << "/gps/ang/maxtheta " << MaxAngle << " deg";
                 UI->ApplyCommand(command.str());
             }
+            
             
             
             command.str("");
@@ -591,8 +682,8 @@ int mdom() {
 	G4VUserPrimaryGeneratorAction* gen_action = new mdomPrimaryGeneratorAction();
 	runManager->SetUserAction(gen_action);
     
-    G4UserStackingAction* stacking_action = new mdomStackingAction();
-    runManager->SetUserAction(stacking_action);
+        G4UserStackingAction* stacking_action = new mdomStackingAction();
+        runManager->SetUserAction(stacking_action);
 
 	G4UserRunAction* run_action = new mdomRunAction();
 	runManager->SetUserAction(run_action);
@@ -710,8 +801,43 @@ int main(int argc,char *argv[])
 	struct arg_str *lplevel = arg_str0(NULL,"lplevel","<n>", "\t\tLevel of the light profile tu use [0:measured, 1:refraction correction, 2:whole correction (1+sin+binning)]. Default 2");
 	struct arg_dbl  *mdomseparation		= arg_dbl0(NULL, "msep,mdomseparation","<n>","\t\t\tSeparation between mDOMs (center) in case that there is more than one in meters");
 	struct arg_int  *n_mDOMs		= arg_int0(NULL, "nmdoms,n_mdoms","<n>","\t\tNumber of mDOMs in the simulation (0 = 1)"); 
+        
+        struct arg_dbl  *displace_theta0   = arg_dbl0(NULL, "displace_theta0","<n>","\t\t\tDisplace module 0 in theta angle, deg");	
+        struct arg_dbl  *displace_phi0   = arg_dbl0(NULL, "displace_phi0","<n>","\t\t\tDisplace module 0 in phi angle, deg");
+        struct arg_dbl  *displace_x0   = arg_dbl0(NULL, "displace_x0","<n>","\t\t\tDisplace module 0 in x pos, cm");
+        struct arg_dbl  *displace_y0   = arg_dbl0(NULL, "displace_y0","<n>","\t\t\tDisplace module 0 in y pos, cm");
+        struct arg_dbl  *displace_theta1   = arg_dbl0(NULL, "displace_theta1","<n>","\t\t\tDisplace module 1 in theta angle, deg");	
+        struct arg_dbl  *displace_phi1   = arg_dbl0(NULL, "displace_phi1","<n>","\t\t\tDisplace module 1 in phi angle, deg");
+        struct arg_dbl  *displace_x1   = arg_dbl0(NULL, "displace_x1","<n>","\t\t\tDisplace module 1 in x pos, cm");
+        struct arg_dbl  *displace_y1   = arg_dbl0(NULL, "displace_y1","<n>","\t\t\tDisplace module 1 in y pos, cm");
+        struct arg_dbl  *transitioncolumn   = arg_dbl0(NULL, "transitioncolumn","<n>","\t\t\tmake a transition column of X cm. O for no transition. If type of transition is gaussian, this is sigma");
+        struct arg_int  *transitioncolumn_slices   = arg_int0(NULL, "transitioncolumn_slices","<n>","\t\t\tif column transition, number of slices");
+        struct arg_int  *transitioncolumn_type   = arg_int0(NULL, "transitioncolumn-type","<n>","\t\t\ttype of transition column = [0 = linear, 1 = gaussian]. Def 0");
 
-
+	struct arg_dbl  *mievar   = arg_dbl0(NULL, "mievar","<n>","\t\t\tVariation on the Mie effective scattering length at 400 nm  in percentaje from original value. Default 0");	
+        struct arg_dbl  *absvar   = arg_dbl0(NULL, "absvar","<n>","\t\t\tVariation on the absorption lenght at 400 nm in percentaje from original value. Default 0");
+        
+        struct arg_dbl  *led0_theta = arg_dbl0(NULL, "led0_theta","<n>","\t\t\tTheta var on LED 0 wrt perpendicular");
+        struct arg_dbl  *led0_phi = arg_dbl0(NULL, "led0_phi","<n>","\t\t\tPhi var on LED 0 wrt perpendicular");
+        struct arg_dbl  *led1_theta = arg_dbl0(NULL, "led1_theta","<n>","\t\t\tTheta var on LED 1 wrt perpendicular");
+        struct arg_dbl  *led1_phi = arg_dbl0(NULL, "led1_phi","<n>","\t\t\tPhi var on LED 1 wrt perpendicular");
+        struct arg_dbl  *led2_theta = arg_dbl0(NULL, "led2_theta","<n>","\t\t\tTheta var on LED 2 wrt perpendicular");
+        struct arg_dbl  *led2_phi = arg_dbl0(NULL, "led2_phi","<n>","\t\t\tPhi var on LED 2 wrt perpendicular");
+        struct arg_dbl  *led3_theta = arg_dbl0(NULL, "led3_theta","<n>","\t\t\tTheta var on LED 3 wrt perpendicular");
+        struct arg_dbl  *led3_phi = arg_dbl0(NULL, "led3_phi","<n>","\t\t\tPhi var on LED 3 wrt perpendicular");
+        struct arg_dbl  *led4_theta = arg_dbl0(NULL, "led4_theta","<n>","\t\t\tTheta var on LED 4 wrt perpendicular");
+        struct arg_dbl  *led4_phi = arg_dbl0(NULL, "led4_phi","<n>","\t\t\tPhi var on LED 4 wrt perpendicular");
+        struct arg_dbl  *led5_theta = arg_dbl0(NULL, "led5_theta","<n>","\t\t\tTheta var on LED 5 wrt perpendicular");
+        struct arg_dbl  *led5_phi = arg_dbl0(NULL, "led5_phi","<n>","\t\t\tPhi var on LED 5 wrt perpendicular");
+        struct arg_dbl  *led6_theta = arg_dbl0(NULL, "led6_theta","<n>","\t\t\tTheta var on LED 6 wrt perpendicular");
+        struct arg_dbl  *led6_phi = arg_dbl0(NULL, "led6_phi","<n>","\t\t\tPhi var on LED 6 wrt perpendicular");
+        struct arg_dbl  *led7_theta = arg_dbl0(NULL, "led7_theta","<n>","\t\t\tTheta var on LED 7 wrt perpendicular");
+        struct arg_dbl  *led7_phi = arg_dbl0(NULL, "led7_phi","<n>","\t\t\tPhi var on LED 7 wrt perpendicular");
+        struct arg_dbl  *led8_theta = arg_dbl0(NULL, "led8_theta","<n>","\t\t\tTheta var on LED 8 wrt perpendicular");
+        struct arg_dbl  *led8_phi = arg_dbl0(NULL, "led8_phi","<n>","\t\t\tPhi var on LED 8 wrt perpendicular");
+        struct arg_dbl  *led9_theta = arg_dbl0(NULL, "led9_theta","<n>","\t\t\tTheta var on LED 9 wrt perpendicular");
+        struct arg_dbl  *led9_phi = arg_dbl0(NULL, "led9_phi","<n>","\t\t\tPhi var on LED 9 wrt perpendicular");
+        
         struct arg_int  *bulk_ice		= arg_int0(NULL, "bulk_ice","<n>","\t\tIceProperties in bulk ice (1) or not (0). If 0, --depthpos does nothing. Default should always be 1"); 
 	struct arg_int  *glass		= arg_int0("uU", "glass","<n>","\t\t\tglass type [VITROVEX, Chiba, Kopp, myVitroVex, myChiba, WOMQuartz, fusedSilica]");
 	struct arg_int	*gel 		= arg_int0("jJ", "gel", "<n>", "\t\t\tgel type [WACKER, Chiba, IceCube, Wacker_company]");
@@ -773,11 +899,48 @@ int main(int argc,char *argv[])
                             //innercolumn_av_costheta,
                             innercolumn_b_inv,
                             lightprofile,
-							extrap_mode,
-							lplevel,
+                            extrap_mode,
+                            lplevel,
                             
                             mdomseparation,
                             n_mDOMs,
+                            
+                            displace_theta0,
+                            displace_phi0,
+                            displace_x0,
+                            displace_y0,
+                            displace_theta1,
+                            displace_phi1,
+                            displace_x1,
+                            displace_y1,
+                            
+                            transitioncolumn,
+                            transitioncolumn_slices,
+                            transitioncolumn_type,
+                            
+                            mievar,
+                            absvar,
+                            
+                            led0_theta,
+                            led0_phi,
+                            led1_theta,
+                            led1_phi,
+                            led2_theta,
+                            led2_phi,
+                            led3_theta,
+                            led3_phi,
+                            led4_theta,
+                            led4_phi,
+                            led5_theta,
+                            led5_phi,
+                            led6_theta,
+                            led6_phi,
+                            led7_theta,
+                            led7_phi,
+                            led8_theta,
+                            led8_phi,
+                            led9_theta,
+                            led9_phi,
                             
                             bulk_ice,
                             glass,
@@ -860,8 +1023,45 @@ int main(int argc,char *argv[])
 	cone_ang->dval[0] = 51.0; // [degrees]	
 	
 	harness_ropes->ival[0] = 1;
-    code->sval[0] = "None"; // core_process for example
-	
+        code->sval[0] = "None"; // core_process for example
+        
+    
+        displace_theta0->dval[0] = 0.0;
+        displace_phi0->dval[0] = 0.0;
+        displace_x0->dval[0] = 0.0;
+        displace_y0->dval[0] = 0.0;
+        displace_theta1->dval[0] = 0.0;
+        displace_phi1->dval[0] = 0.0;
+        displace_x1->dval[0] = 0.0;
+        displace_y1->dval[0] = 0.0;
+        transitioncolumn->dval[0] = 0;
+        transitioncolumn_slices->ival[0] = 10;
+        transitioncolumn_type->ival[0] = 0;
+        
+        mievar->dval[0] = 0.;
+        absvar->dval[0] = 0.;
+        
+	led0_theta->dval[0] = 0.; // deg
+        led0_phi->dval[0] = 0.; // deg
+        led1_theta->dval[0] = 0.; 
+        led1_phi->dval[0] = 0.; 
+        led2_theta->dval[0] = 0.; 
+        led2_phi->dval[0] = 0.; 
+        led3_theta->dval[0] = 0.; 
+        led3_phi->dval[0] = 0.; 
+        led4_theta->dval[0] = 0.; 
+        led4_phi->dval[0] = 0.; 
+        led5_theta->dval[0] = 0.; 
+        led5_phi->dval[0] = 0.; 
+        led6_theta->dval[0] = 0.; 
+        led6_phi->dval[0] = 0.; 
+        led7_theta->dval[0] = 0.; 
+        led7_phi->dval[0] = 0.; 
+        led8_theta->dval[0] = 0.; 
+        led8_phi->dval[0] = 0.; 
+        led9_theta->dval[0] = 0.; 
+        led9_phi->dval[0] = 0.; 
+        
 	scintYield->dval[0] = 57.0;
 	scintTimeConst->dval[0] = 300000.0;
 	scintSpectrum->dval[0] = 0.0;
@@ -885,7 +1085,7 @@ int main(int argc,char *argv[])
 	/* Parse the command line as defined by argtable[] */
     nerrors = arg_parse(argc,argv,argtable);
 
-    G4String lightprofile_str = lightprofile->sval[0];
+        G4String lightprofile_str = lightprofile->sval[0];
 	G4String lplevel_str = lplevel->sval[0];
 	G4String extrap_mode_str = extrap_mode->sval[0];
 	//check if the levels and extrapolation modes are right
@@ -989,8 +1189,47 @@ int main(int argc,char *argv[])
 	gHolderColor = holdercol->ival[0];
 	gDOM = dom->ival[0];
 	
-	gRefCone_angle = cone_ang->dval[0];		
-	
+	gRefCone_angle = cone_ang->dval[0];	
+
+        gMieVar = mievar->dval[0];
+        gAbsVar = absvar->dval[0];
+        
+        gleds_theta.push_back(led0_theta->dval[0]*deg);
+        gleds_theta.push_back(led1_theta->dval[0]*deg);
+        gleds_theta.push_back(led2_theta->dval[0]*deg);
+        gleds_theta.push_back(led3_theta->dval[0]*deg);
+        gleds_theta.push_back(led4_theta->dval[0]*deg);
+        gleds_theta.push_back(led5_theta->dval[0]*deg);
+        gleds_theta.push_back(led6_theta->dval[0]*deg);
+        gleds_theta.push_back(led7_theta->dval[0]*deg);
+        gleds_theta.push_back(led8_theta->dval[0]*deg);
+        gleds_theta.push_back(led9_theta->dval[0]*deg);
+        
+        gleds_phi.push_back(led0_phi->dval[0]*deg);
+        gleds_phi.push_back(led1_phi->dval[0]*deg);
+        gleds_phi.push_back(led2_phi->dval[0]*deg);
+        gleds_phi.push_back(led3_phi->dval[0]*deg);
+        gleds_phi.push_back(led4_phi->dval[0]*deg);
+        gleds_phi.push_back(led5_phi->dval[0]*deg);
+        gleds_phi.push_back(led6_phi->dval[0]*deg);
+        gleds_phi.push_back(led7_phi->dval[0]*deg);
+        gleds_phi.push_back(led8_phi->dval[0]*deg);
+        gleds_phi.push_back(led9_phi->dval[0]*deg);
+        
+        
+        gdisplace_theta0 = displace_theta0->dval[0]*deg;
+        gdisplace_phi0 = displace_phi0->dval[0]*deg;
+        gdisplace_x0 = displace_x0->dval[0]*cm;
+        gdisplace_y0 = displace_y0->dval[0]*cm;
+        gdisplace_theta1 = displace_theta1->dval[0]*deg;
+        gdisplace_phi1 = displace_phi1->dval[0]*deg;
+        gdisplace_x1 = displace_x1->dval[0]*cm;
+        gdisplace_y1 = displace_y1->dval[0]*cm;
+        
+        gtransitioncolumn = transitioncolumn->dval[0]*cm;
+        gtransitioncolumn_slices = transitioncolumn_slices->ival[0];
+        gtransitioncolumn_type = transitioncolumn_type->ival[0];
+
 	gscintYield = scintYield->dval[0];
 	gscintTimeConst = scintTimeConst->dval[0];
 	gscintSpectrum = scintSpectrum->dval[0];
@@ -1096,6 +1335,7 @@ int main(int argc,char *argv[])
 			}
 		gHittype = "collective";
 		glightprofile_file = "../aux/processedlightspectrum_" + lightprofile_str + "_level_" + lplevel_str + "_ext" + extrap_mode_str + ".cfg";
+                //glightprofile_file = "../aux/lightspectrum_test.cfg";
 		G4cout << "Using profile: " << glightprofile_file << G4endl;
 	}
 	

@@ -40,7 +40,8 @@ extern G4bool gharness_ropes;
 extern G4bool gVisual;
 extern G4double gmdomseparation;
 extern G4int gn_mDOMs;
-
+extern std::vector<G4double> gleds_theta;
+extern std::vector<G4double> gleds_phi;
 
 mDOM::mDOM(OMSimInputData* pData, G4bool pPlaceHarness) {
     mPlaceHarness = pPlaceHarness;
@@ -146,9 +147,18 @@ void mDOM::Construction()
     G4LogicalVolume* lRefconeEqLoCutLogical = new G4LogicalVolume(lRefConeEqLoCutSolid,
         mData->GetMaterial("NoOptic_Reflector"),
         "RefConeType3 ETEL logical");
+    /*
     G4LogicalVolume* lLEDHoleAirLogical = new G4LogicalVolume (lLEDHoleAirSolid, 
         mData->GetMaterial("Ri_Vacuum"), 
         "LED hole");
+    */
+    std::vector<G4LogicalVolume*> lLEDHoleAirLogicals;
+    for (int k = 0; k <=mNrTotalLED-1; k++) { 
+        lLEDHoleAirLogicals.push_back( new G4LogicalVolume (lLEDHoleAirSolid, 
+                                                    mData->GetMaterial("Ri_Vacuum"), 
+                                                    "LED hole"));
+    }
+    
     G4LogicalVolume* lLEDGlassTopLogical = new G4LogicalVolume (lLEDGlassTopSolid, 
         mData->GetMaterial("RiAbs_Glass_Vitrovex"), 
         "LED Glass top logical");
@@ -192,17 +202,25 @@ void mDOM::Construction()
     }
     //Place LED
     // Placement LED itself
-	new G4PVPlacement (0, G4ThreeVector(0,0,-1.7*mm), lLEDLogical, "LED_physical", lLEDHoleAirLogical, false, 0, true); // LED to glass 1mm: -1.7mm; LED to glass 0.6mm: -1.1mm
-	// Placement LED glass top between air (where LED is) and gel
-	new G4PVPlacement (0, G4ThreeVector(0,0,4.4*mm+0.875*mm), lLEDGlassTopLogical, "LED_Glass top_physical", lLEDHoleAirLogical, false, 0, true);
+    G4RotationMatrix* lLEDRotation;
+
+    G4PVPlacement* lLED_physical;
     //Place LED holes (air), with LEDs inside
-	for (int k = 0; k <=mNrTotalLED-1; k++) { 
+    for (int k = 0; k <=mNrTotalLED-1; k++) { 
+        
+        lLEDRotation= new G4RotationMatrix();
+        lLEDRotation->setTheta(gleds_theta.at(mNrTotalLED-1-k)); //NOTE: mNrTotalLED-1-k because at some point we changed the LED definition, and I want LED0 to be pointing downwards
+        lLEDRotation->setPhi(gleds_phi.at(mNrTotalLED-1-k));
+        new G4PVPlacement (lLEDRotation, G4ThreeVector(0,0,-1.7*mm), lLEDLogical, "LED_physical", lLEDHoleAirLogicals.at(k), false, 0, true); // LED to glass 1mm: -1.7mm; LED to glass 0.6mm: -1.1mm
+    // Placement LED glass top between air (where LED is) and gel
+        new G4PVPlacement (0, G4ThreeVector(0,0,4.4*mm+0.875*mm), lLEDGlassTopLogical, "LED_Glass top_physical", lLEDHoleAirLogicals.at(k), false, 0, true);
+        
         lConverter.str("");
         lConverter << "LEDhole_physical_" << k;
-      	new G4PVPlacement (mLEDTransformers[k], lLEDHoleAirLogical, lConverter.str(), lGelLogical, false, 0, true);
+        lLED_physical = new G4PVPlacement (mLEDTransformers[k], lLEDHoleAirLogicals.at(k), lConverter.str(), lGelLogical, false, 0, true);
+
     }
-        
-        
+
         
     // ------------------ Add outer shape solid to MultiUnion in case you need substraction -------------------------------------------
 
@@ -224,8 +242,10 @@ void mDOM::Construction()
     lRefConePolarLogical->SetVisAttributes(mAluVis);
     lRefconeEqUpCutLogical->SetVisAttributes(mAluVis);
     lRefconeEqLoCutLogical->SetVisAttributes(mAluVis);
-    lLEDHoleAirLogical->SetVisAttributes(mInvisibleVis);
-	lLEDLogical->SetVisAttributes(mLEDvis); 
+    for (int k = 0; k <=mNrTotalLED-1; k++) { 
+        lLEDHoleAirLogicals.at(k)->SetVisAttributes(mInvisibleVis);
+    }
+    lLEDLogical->SetVisAttributes(mLEDvis); 
     lLEDGlassTopLogical->SetVisAttributes(mGlassVis); 
 }
 
@@ -443,33 +463,33 @@ void mDOM::SetLEDPositions()
     G4double lPMTzOffset;
     G4double lPolEqPMTPhiPhase = mData->GetValue(mDataKey, "jPolEqPMTPhiPhase");
     G4ThreeVector lLEDPosition;
-	G4RotationMatrix* lLEDRotation;
+    G4RotationMatrix* lLEDRotation;
     G4Transform3D lTransformers;
 
     mLED_AngFromSphere.resize(mNrTotalLED);
 
-	for (int i = 0; i<=mNrTotalLED-1; i++) {
-		if (i>=0 && i<=lNrPolLED-1){	// pol upper -> i=0
+    for (int i = 0; i<=mNrTotalLED-1; i++) {
+        if (i>=0 && i<=lNrPolLED-1){	// pol upper -> i=0
             lLEDtheta=lThetaPolLED;
             lLEDphi=(lPolEqPMTPhiPhase+i*360.*deg/lNrPolLED);
-			lPMTzOffset = mCylHigh;
-			}
-		if (i>=lNrPolLED && i<=lNrEqLED){ 	// eq upper -> i={1;4}
+            lPMTzOffset = mCylHigh;
+        }
+        if (i>=lNrPolLED && i<=lNrEqLED){ 	// eq upper -> i={1;4}
             lLEDtheta=lThetaEqLED;
             lLEDphi=lPolEqPMTPhiPhase+(i-1)*360.*deg/lNrEqLED;
-			lPMTzOffset = mCylHigh;
-			}
-		if (i>=lNrEqLED+1 && i<=mNrTotalLED-2){	// eq lower -> i={5;8}
+            lPMTzOffset = mCylHigh;
+        }
+        if (i>=lNrEqLED+1 && i<=mNrTotalLED-2){	// eq lower -> i={5;8}
             lLEDtheta=180*deg-lThetaEqLED;
             lLEDphi=lPolEqPMTPhiPhase+(i-5)*360.*deg/lNrEqLED;
-			lPMTzOffset = -mCylHigh;
-			}
-        
-		if (i>=2*lNrEqLED+1 && i<=mNrTotalLED-1){	// pol lower -> i=9
+            lPMTzOffset = -mCylHigh;
+        }
+    
+        if (i>=2*lNrEqLED+1 && i<=mNrTotalLED-1){	// pol lower -> i=9
             lLEDtheta=180*deg-lThetaPolLED;
             lLEDphi=lPolEqPMTPhiPhase;
-			lPMTzOffset = -mCylHigh;
-			}
+            lPMTzOffset = -mCylHigh;
+        }
 
         lLEDrho	 = lLEDr * sin(lLEDtheta);
 

@@ -16,7 +16,7 @@ else()
 endif()
 
 # location of Geant4 libraries
-set (CMAKE_MODULE_PATH /Applic.ZIV/CentOS7/software/p0kapp/software/geant4/4.10.07.p02/lib64/Geant4-10.7.2/Modules)
+set (CMAKE_MODULE_PATH /Applic.HPC/gruppen/p0kapp/software/geant4/4.10.07.p02/lib64/Geant4-10.7.2/Modules)
 # try to use ROOT libraries
 #find_package(ROOT)
 
@@ -32,7 +32,7 @@ file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.hh)
 file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.h)
 
 # manually add argtable
-LINK_DIRECTORIES(/Applic.ZIV/CentOS7/software/p0kapp/software/lib)
+LINK_DIRECTORIES(/Applic.HPC/gruppen/p0kapp/software/lib)
 
 # details for the finished binary
 add_executable(mdom mdom.cc ${sources} ${headers})

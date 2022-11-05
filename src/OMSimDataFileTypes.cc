@@ -14,7 +14,12 @@
 
 namespace pt = boost::property_tree;
 extern G4double gInnercolumn_b_inv;
-
+extern G4double gtransitioncolumn;
+extern G4int gtransitioncolumn_slices;
+extern G4int gtransitioncolumn_type;
+extern G4double gInnercolumnradius;
+extern G4double gMieVar;
+extern G4double gAbsVar;
 
 /*
  * %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -166,8 +171,13 @@ void IceCubeIce::ExtractInformation()
     CreateMaterial(); //creates IceCubeICE
     G4Material *lIceMie = new G4Material("IceCubeICE_SPICE", mFileData->GetValue(mObjectName,"jDensity"), mMatDatBase->FindOrBuildMaterial("G4_WATER"), kStateSolid); //create IceCubeICE_SPICE
     G4Material *lBubleColumnMie = new G4Material("Mat_BubColumn", mFileData->GetValue(mObjectName,"jDensity"), mMatDatBase->FindOrBuildMaterial("G4_WATER"), kStateSolid); //create IceCubeICE_SPICE
+    std::vector<G4Material*> lBubleColumnMie_slices;
+
     std::vector<G4double> lMieScatteringLength;
     std::vector<G4double> lMieScatteringLength_BubleColumn;
+    std::vector<G4double> this_lMieScatteringLength_BubleColumn;
+    std::vector<std::vector<G4double>> lMieScatteringLength_BubleColumn_slices;
+    G4double this_Innercolumn_b_inv;
     std::vector<G4double> lWavelength;
     std::vector<G4double> lRefractionIndex;
     std::vector<G4double> lRefractionIndexEnergy;
@@ -177,7 +187,12 @@ void IceCubeIce::ExtractInformation()
     ParseToVector(mSpice_be400inv, mJsonTree, "jbe400inv_spice", 1 * m, false);
     ParseToVector(mSpice_a400inv, mJsonTree, "ja400inv_spice", 1 * m, false);
     ParseToVector(mSpice_Depth, mJsonTree, "jDepth_spice", 1 * m, false);
-
+    
+    //loop to include variations on the effective scattering and absorption lenghts
+    for (int u = 0; u < static_cast<int>(lRefractionIndexEnergy.size()); u++){
+        mSpice_be400inv[u] = mSpice_be400inv.at(u) * (1.+ gMieVar/100.);
+        mSpice_a400inv[u] = mSpice_a400inv.at(u) * (1. + gAbsVar/100.);
+    }
     for (int u = 0; u < static_cast<int>(lRefractionIndexEnergy.size()); u++)
     {
         lRefractionIndex.push_back(Spice_Refraction(lWavelength.at(u)));
@@ -185,6 +200,52 @@ void IceCubeIce::ExtractInformation()
         lMieScatteringLength.push_back(Mie_Scattering(lWavelength.at(u)));
         lMieScatteringLength_BubleColumn.push_back(gInnercolumn_b_inv);
     }
+    if (gtransitioncolumn != 0) {
+        for (int k = 0; k < static_cast<int>(gtransitioncolumn_slices); k++) {
+            this_lMieScatteringLength_BubleColumn.clear();
+            for (int u = 0; u < static_cast<int>(lRefractionIndexEnergy.size()); u++) {
+                //G4cout << k << G4endl;
+                if (gtransitioncolumn_type == 0) { //lineal
+                    this_Innercolumn_b_inv = (Mie_Scattering(lWavelength.at(u)) - gInnercolumn_b_inv)/(gtransitioncolumn_slices-1) * k + gInnercolumn_b_inv; // index*difference+min
+                } else { //gaussian
+                    G4double A = Mie_Scattering(lWavelength.at(u));
+                    G4double sigma = gtransitioncolumn/10.; //Dont forget this!!!! The larger gtransitioncolumn is used so that the geometry within the slices includes the whole transition
+                    G4double mu = gInnercolumnradius; //so it is more or less centered
+                    G4double y0 = gInnercolumn_b_inv;
+                    //now assign, from a equally distribution in r, each slice k to one value of the gaussian
+                    G4double start = gInnercolumnradius-gtransitioncolumn/2.;
+                    G4double end = gInnercolumnradius+gtransitioncolumn/2.;
+                    G4double rad = (end - start) / (gtransitioncolumn_slices-1) * k + start;
+                    //now calculate the gaussian, where x=rad
+                    //this_Innercolumn_b_inv = (A-y0) * exp(-pow((rad - mu)/sigma,2)/2.0) + y0;
+                    this_Innercolumn_b_inv = 1./2.*(1.+erf((rad-mu)/(sigma*sqrt(2))))*A+y0;
+                }
+                this_lMieScatteringLength_BubleColumn.push_back(this_Innercolumn_b_inv);
+                /*
+                if (u == 30) {
+                    G4cout << Mie_Scattering(lWavelength.at(u)) << ", " <<  gInnercolumn_b_inv << ", " <<  gtransitioncolumn_slices << ", " <<  k << ", " << gInnercolumn_b_inv << " : " << this_Innercolumn_b_inv << G4endl;
+                }*/
+            }
+            lMieScatteringLength_BubleColumn_slices.push_back(this_lMieScatteringLength_BubleColumn);
+        }
+    }
+    /*
+    if (gtransitioncolumn != 0) {
+                    int u = 30;
+            G4cout << "Wavelenght : " << lWavelength.at(u)/nm << G4endl;
+            G4cout << "be out of the column: " << lMieScatteringLength.at(u) << G4endl;
+        for (int k = 0; k < static_cast<int>(lMieScatteringLength_BubleColumn_slices.size()); k++)
+        {
+
+            //G4cout << lMieScatteringLength_BubleColumn_slices.size() << " " << lMieScatteringLength_BubleColumn_slices[u].size() << G4endl;
+            //for (int k = 0; k < static_cast<int>(lMieScatteringLength_BubleColumn_slices[u].size()); k++) {
+                G4cout << k << G4endl;
+                G4cout << "be array: " << lMieScatteringLength_BubleColumn_slices.at(k).at(u) << G4endl;
+            //}
+        }
+    }
+    */
+    
     //give refractive index to IceCubeICE. This is used also for IceCubeICE_SPICE
     mMPT->AddProperty("RINDEX", &lRefractionIndexEnergy[0], &lRefractionIndex[0], static_cast<int>(lRefractionIndex.size()));
     mMaterial->SetMaterialPropertiesTable(mMPT);
@@ -207,7 +268,33 @@ void IceCubeIce::ExtractInformation()
     mMPT_holeice->AddConstProperty("MIEHG_BACKWARD", mMIE_spice_const[1]);
     mMPT_holeice->AddConstProperty("MIEHG_FORWARD_RATIO", mMIE_spice_const[2]);
     lBubleColumnMie->SetMaterialPropertiesTable(mMPT_holeice);
+    
+    std::stringstream matname;
+    G4MaterialPropertiesTable* MPT_holeice_temp;
+    G4Material* lBubleColumnMie_temp;
+    if (gtransitioncolumn != 0) {
+        for (int k = 0; k < static_cast<int>(gtransitioncolumn_slices); k++) {
+            matname.str("");
+            matname << "Mat_BubColumn_" << k;
+            this_lMieScatteringLength_BubleColumn.clear();
+            this_lMieScatteringLength_BubleColumn = lMieScatteringLength_BubleColumn_slices.at(k);
+            lBubleColumnMie_temp = new G4Material(matname.str(), mFileData->GetValue(mObjectName,"jDensity"), mMatDatBase->FindOrBuildMaterial("G4_WATER"), kStateSolid); //create IceCubeICE_SPICE
+            
+            MPT_holeice_temp = new G4MaterialPropertiesTable();
+            MPT_holeice_temp->AddProperty("RINDEX", &lRefractionIndexEnergy[0], &lRefractionIndex[0], static_cast<int>(lRefractionIndex.size()));
+            MPT_holeice_temp->AddProperty("ABSLENGTH", &lRefractionIndexEnergy[0], &lAbsLength[0], static_cast<int>(lAbsLength.size()));
+            MPT_holeice_temp->AddProperty("MIEHG", &lRefractionIndexEnergy[0], &this_lMieScatteringLength_BubleColumn[0], static_cast<int>(lRefractionIndex.size()))->SetSpline(true);
+            MPT_holeice_temp->AddConstProperty("MIEHG_FORWARD", mMIE_spice_const[0]);
+            MPT_holeice_temp->AddConstProperty("MIEHG_BACKWARD", mMIE_spice_const[1]);
+            MPT_holeice_temp->AddConstProperty("MIEHG_FORWARD_RATIO", mMIE_spice_const[2]);
+            mMPT_holeice_slices.push_back(MPT_holeice_temp);
+            lBubleColumnMie_temp->SetMaterialPropertiesTable(mMPT_holeice_slices.at(k));
+            lBubleColumnMie_slices.push_back(lBubleColumnMie_temp);
+        }
+    }
+    //MPT_holeice_temp->DumpTable();
 }
+
 /*
  * %%%%%%%%%%%%%%%% Functions for icecube ice optical properties %%%%%%%%%%%%%%%%
  */
